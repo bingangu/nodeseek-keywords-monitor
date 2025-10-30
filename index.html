@@ -1193,7 +1193,7 @@
             icon: iconUrl,
             badge: badgeUrl,
             tag: "rss-monitor",
-            requireInteraction: false,
+            requireInteraction: true,
             silent: false,
           });
 
@@ -1205,8 +1205,8 @@
             };
           }
 
-          // 5秒后自动关闭
-          setTimeout(() => notification.close(), 5000);
+          // 10秒后自动关闭
+          setTimeout(() => notification.close(), 10000);
         }
       }
 
