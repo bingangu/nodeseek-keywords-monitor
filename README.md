@@ -5,29 +5,34 @@ https://ghostart.blog/nodeseek-keywords-monitor
 # RSS 关键词监控面板
 
 ## 项目概述
+
 这是一个单页面 Web 应用，用于监控和筛选 NodeSeek RSS 源中的帖子。用户可以通过添加关键词来过滤感兴趣的内容，所有关键词都会保存在浏览器的 localStorage 中以便持久化存储。
 
 ## 核心功能
 
 ### 1. 关键词管理
+
 - 通过文本输入框添加关键词（支持回车键和按钮点击）
 - 关键词以标签（Pill/Tag）形式展示，每个标签包含删除按钮
 - 关键词自动保存到 localStorage，页面刷新后仍然保留
 - 空状态提示：没有关键词时显示提示信息
 
 ### 2. RSS 数据获取
+
 - RSS 源：https://rss.nodeseek.com/
 - CORS 解决方案：使用 https://api.allorigins.win/raw?url= 代理
 - XML 解析：使用浏览器原生 DOMParser API
 - 提取字段：标题、链接、描述、作者 (dc:creator)、发布日期 (pubDate)
 
 ### 3. 帖子筛选与展示
+
 - 无关键词时：显示所有帖子
 - 有关键词时：只显示标题或描述中包含关键词的帖子（不区分大小写）
 - 关键词高亮：使用黄色背景高亮显示匹配的关键词
 - 卡片布局：每篇帖子显示为独立卡片，包含标题（可点击链接）、作者、日期和描述
 
 ### 4. 自动刷新功能
+
 - 自动刷新开关：用户可以通过滑动开关启用/禁用自动刷新功能
 - 刷新间隔：每 60 秒（1 分钟）自动获取最新帖子
 - 倒计时显示：启用自动刷新后显示实时倒计时，显示距离下次刷新的剩余秒数
@@ -35,22 +40,24 @@ https://ghostart.blog/nodeseek-keywords-monitor
 - 优雅开关：使用现代化的滑动开关（Toggle Switch）控件，绿色表示启用
 - **浏览器通知**：启用自动刷新时自动请求通知权限，发现新的匹配帖子时通过浏览器通知提醒用户
   - 通知标题：显示发现的新匹配帖子数量
-  - 通知内容：显示最新帖子的标题（最多60字符）
+  - 通知内容：显示最新帖子的标题（最多 60 字符）
   - 点击通知：直接打开帖子链接
-  - 自动关闭：通知5秒后自动关闭
+  - 自动关闭：通知 5 秒后自动关闭
 
 ### 5. 用户体验优化
+
 - 加载状态：显示加载动画和提示文字，按钮禁用防止重复点击
 - 空状态提示：
   - 欢迎页面（首次访问）
   - 无匹配帖子提示
   - 数据获取失败提示
 - 统计信息：显示匹配帖子数、关键词数量和总帖子数
-- 相对时间显示：刚刚、X分钟前、X小时前、X天前等
+- 相对时间显示：刚刚、X 分钟前、X 小时前、X 天前等
 - 响应式设计：适配桌面和移动设备
 - 动画效果：卡片淡入、标签滑入、悬停效果等
 
 ## 技术栈
+
 - **HTML5**：语义化标签
 - **CSS3**：原生 CSS，无框架
   - CSS 变量用于主题管理
@@ -64,6 +71,7 @@ https://ghostart.blog/nodeseek-keywords-monitor
   - 正则表达式关键词匹配
 
 ## 项目结构
+
 ```
 ├── index.html          # 单文件应用（包含 HTML、CSS、JavaScript）
 └── README.md          # 项目文档
@@ -72,6 +80,7 @@ https://ghostart.blog/nodeseek-keywords-monitor
 ## 主要代码逻辑
 
 ### 关键词管理
+
 - `loadKeywords()`: 从 localStorage 读取关键词
 - `saveKeywords()`: 保存关键词到 localStorage
 - `addKeyword()`: 添加新关键词（验证重复和空值）
@@ -79,38 +88,45 @@ https://ghostart.blog/nodeseek-keywords-monitor
 - `renderKeywords()`: 渲染关键词标签 UI
 
 ### RSS 数据处理
+
 - `fetchRSS()`: 通过 CORS 代理获取 RSS XML 数据
 - `getElementText()`: 从 XML 元素提取文本内容
 - `filterAndRenderPosts()`: 根据关键词筛选帖子并渲染
 
 ### 渲染逻辑
+
 - `renderPost()`: 渲染单个帖子卡片
 - `highlightKeywords()`: 在文本中高亮关键词
 - `renderStats()`: 显示统计信息
 - `showLoading()`: 显示加载状态
 
 ### 浏览器通知逻辑
+
 - `requestNotificationPermission()`: 请求浏览器通知权限
 - `sendNotification()`: 发送浏览器通知（支持点击打开链接）
 - `detectAndNotifyNewPosts()`: 检测新帖子并发送通知（仅自动刷新时）
 
 ### 自动刷新逻辑
+
 - `updateCountdown()`: 更新倒计时显示并在时间到时自动刷新
 - `startAutoRefresh()`: 启动自动刷新定时器并请求通知权限
 - `stopAutoRefresh()`: 停止自动刷新定时器并隐藏倒计时
 - `toggleAutoRefresh()`: 切换自动刷新开关状态
 
 ### 工具函数
+
 - `escapeHtml()`: HTML 转义防止 XSS 攻击
 - `escapeRegExp()`: 转义正则表达式特殊字符
 - `formatDate()`: 格式化日期为相对时间或绝对时间
 
 ## 安全性
+
 - 使用 `escapeHtml()` 防止 XSS 攻击
 - 所有用户输入都经过转义处理
 - 使用 `rel="noopener noreferrer"` 防止 tabnabbing 攻击
 
 ## 最近更新
+
 - 2025-10-30: 初始版本创建
   - 实现完整的关键词管理功能
   - 实现 RSS 数据获取和解析
@@ -136,9 +152,10 @@ https://ghostart.blog/nodeseek-keywords-monitor
     - 检测新帖子：比对帖子链接，识别真正的新内容
     - 智能过滤：只通知匹配关键词的新帖子
     - 可点击通知：点击通知直接打开帖子链接
-    - 自动关闭：通知5秒后自动消失
+    - 自动关闭：通知 5 秒后自动消失
 
 ## 使用说明
+
 1. 打开 index.html 即可直接在浏览器中使用
 2. 在"关键词管理"区域添加您感兴趣的关键词（至少一个）
 3. 点击"刷新帖子"按钮获取最新的 RSS 数据
@@ -148,10 +165,3 @@ https://ghostart.blog/nodeseek-keywords-monitor
    - 发现新的匹配帖子时，会收到浏览器桌面通知
    - 点击通知可直接打开对应的帖子链接
 6. 关键词会自动保存，下次访问时无需重新添加
-
-## 未来可能的增强功能
-- 暗黑模式切换
-- 自动刷新功能（定时器）
-- 导出筛选结果为 JSON/CSV
-- 关键词统计（每个关键词的匹配数量）
-- 高级筛选（日期范围、作者筛选、排除关键词）
