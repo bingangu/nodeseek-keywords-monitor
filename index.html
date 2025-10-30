@@ -878,10 +878,20 @@
                     FALLBACK_CORS_PROXIES.length
                   }: ${proxyUrl}`
                 );
-                xmlText = await fetchWithProxy(proxyUrl);
-                successProxyIndex = proxyIndex;
-                console.log(`✓ 第三方代理 ${proxyIndex + 1} 成功`);
-                break; // 成功则跳出循环
+
+                // 1. 先将结果存入临时变量
+                const potentialXmlText = await fetchWithProxy(proxyUrl);
+
+                // 2. 核心改动：检查返回的内容是否真实有效（不为空）
+                if (potentialXmlText && potentialXmlText.trim() !== "") {
+                  xmlText = potentialXmlText; // 只有在内容有效时才赋值
+                  successProxyIndex = proxyIndex;
+                  console.log(`✓ 第三方代理 ${proxyIndex + 1} 成功`);
+                  break; // 真正成功，跳出循环
+                } else {
+                  // 3. 如果代理返回了200 OK但内容为空，也视为失败，手动抛出错误
+                  throw new Error("代理成功响应，但内容为空");
+                }
               } catch (error) {
                 console.warn(
                   `✗ 第三方代理 ${proxyIndex + 1} 失败:`,
