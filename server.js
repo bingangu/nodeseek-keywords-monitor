@@ -115,6 +115,6 @@ app.listen(PORT, () => {
   console.log("║  NodeSeek RSS 代理服务器已启动             ║");
   console.log("╠════════════════════════════════════════════╣");
   console.log(`║  端口: ${PORT.toString().padEnd(38)}║`);
-  console.log(`║  RSS API: http://localhost:${PORT}/api/rss`.padEnd(45) + "║");
+  console.log(`║  在线查看: http://localhost:${PORT}`.padEnd(45) + "║");
   console.log("╚════════════════════════════════════════════╝");
 });

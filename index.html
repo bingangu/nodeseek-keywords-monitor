@@ -640,6 +640,7 @@
         "https://cors.eu.org/",
       ];
       const STORAGE_KEY = "rss_keywords";
+      const NOTIFIED_POSTS_KEY = "rss_notified_posts"; // 用于 localStorage 的键
 
       // 当前使用的代理索引
       let currentProxyIndex = 0;
@@ -658,7 +659,7 @@
       // ============== 全局状态 ==============
       let keywords = [];
       let allPosts = [];
-      let previousPostIds = new Set(); // 存储之前的帖子 ID，用于检测新内容
+      let notifiedPostIds = new Set(); // 存储已发送过通知的帖子链接
 
       // 自动刷新相关
       const AUTO_REFRESH_INTERVAL = 60; // 60 秒
@@ -693,6 +694,35 @@
           localStorage.setItem(STORAGE_KEY, JSON.stringify(keywords));
         } catch (error) {
           console.error("保存关键词失败:", error);
+        }
+      }
+
+      /**
+       * 从 localStorage 加载已通知的帖子 ID
+       */
+      function loadNotifiedPostIds() {
+        try {
+          const stored = localStorage.getItem(NOTIFIED_POSTS_KEY);
+          if (stored) {
+            notifiedPostIds = new Set(JSON.parse(stored));
+          }
+        } catch (error) {
+          console.error("加载已通知帖子列表失败:", error);
+          notifiedPostIds = new Set();
+        }
+      }
+
+      /**
+       * 保存已通知的帖子 ID 到 localStorage
+       */
+      function saveNotifiedPostIds() {
+        try {
+          localStorage.setItem(
+            NOTIFIED_POSTS_KEY,
+            JSON.stringify(Array.from(notifiedPostIds))
+          );
+        } catch (error) {
+          console.error("保存已通知帖子列表失败:", error);
         }
       }
 
@@ -903,10 +933,7 @@
             };
           });
 
-          // 检测并通知新内容（仅在自动刷新时）
-          detectAndNotifyNewPosts(allPosts);
-
-          // 筛选并渲染帖子
+          // 筛选、渲染并处理通知
           filterAndRenderPosts();
         } catch (error) {
           console.error("获取 RSS 失败:", error);
@@ -924,7 +951,6 @@
         } finally {
           // 重置获取标志
           isFetching = false;
-          isAutoRefreshTriggered = false;
 
           // 恢复刷新按钮（取决于是否有关键词）
           updateRefreshButtonState();
@@ -935,6 +961,9 @@
             remainingSeconds = AUTO_REFRESH_INTERVAL;
             countdownTime.textContent = remainingSeconds;
           }
+
+          // 在任务最后重置自动刷新标志，确保通知逻辑能正确判断
+          isAutoRefreshTriggered = false;
         }
       }
 
@@ -949,14 +978,14 @@
       // ============== 帖子筛选与渲染 ==============
 
       /**
-       * 筛选并渲染帖子
+       * 筛选、渲染帖子，并触发通知检查
        */
       function filterAndRenderPosts() {
-        let filteredPosts = allPosts;
+        let matchedPosts = [];
 
-        // 如果有关键词，进行筛选
+        // 1. 如果有关键词，进行筛选
         if (keywords.length > 0) {
-          filteredPosts = allPosts.filter((post) => {
+          matchedPosts = allPosts.filter((post) => {
             const searchText = (
               post.title +
               " " +
@@ -968,12 +997,18 @@
           });
         }
 
-        // 显示统计信息
-        renderStats(filteredPosts.length, allPosts.length);
+        // 2. 检查是否有需要发送通知的新匹配帖子
+        //    这个检查只在自动刷新时触发，以避免手动刷新时弹出通知
+        if (isAutoRefreshTriggered) {
+          checkForNewMatchesAndNotify(matchedPosts);
+        }
 
-        // 渲染帖子
-        if (filteredPosts.length === 0) {
-          if (allPosts.length === 0) {
+        // 3. 显示统计信息
+        renderStats(matchedPosts.length, allPosts.length);
+
+        // 4. 渲染帖子
+        if (matchedPosts.length === 0) {
+          if (allPosts.length === 0 && !isFetching) {
             postsContainer.innerHTML = `
                         <div class="empty-state">
                             <div class="empty-state-icon">📭</div>
@@ -993,11 +1028,40 @@
         } else {
           postsContainer.innerHTML = `
                     <div class="posts-container">
-                        ${filteredPosts
-                          .map((post) => renderPost(post))
-                          .join("")}
+                        ${matchedPosts.map((post) => renderPost(post)).join("")}
                     </div>
                 `;
+        }
+      }
+
+      /**
+       * 检查匹配的帖子中是否有新内容，并发送通知
+       */
+      function checkForNewMatchesAndNotify(matchedPosts) {
+        if (
+          Notification.permission !== "granted" ||
+          matchedPosts.length === 0
+        ) {
+          return;
+        }
+
+        // 找出本次匹配的、但从未发送过通知的帖子
+        const newPostsToNotify = matchedPosts.filter(
+          (post) => !notifiedPostIds.has(post.link)
+        );
+
+        if (newPostsToNotify.length > 0) {
+          // 发送通知
+          const firstPost = newPostsToNotify[0];
+          const title = `🔔 发现 ${newPostsToNotify.length} 篇新匹配帖子`;
+          const body = `最新：${firstPost.title.substring(0, 60)}${
+            firstPost.title.length > 60 ? "..." : ""
+          }`;
+          sendNotification(title, body, firstPost.link);
+
+          // 将这些新通知过的帖子链接加入集合，并保存
+          newPostsToNotify.forEach((post) => notifiedPostIds.add(post.link));
+          saveNotifiedPostIds();
         }
       }
 
@@ -1118,10 +1182,16 @@
        */
       function sendNotification(title, body, link) {
         if (Notification.permission === "granted") {
+          // 使用 Data URL 将 Emoji 转换为有效的图标源，修复 404 错误
+          const iconUrl =
+            "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>";
+          const badgeUrl =
+            "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔔</text></svg>";
+
           const notification = new Notification(title, {
             body: body,
-            icon: "📡",
-            badge: "🔔",
+            icon: iconUrl,
+            badge: badgeUrl,
             tag: "rss-monitor",
             requireInteraction: false,
             silent: false,
@@ -1138,51 +1208,6 @@
           // 5秒后自动关闭
           setTimeout(() => notification.close(), 5000);
         }
-      }
-
-      /**
-       * 检测并通知新内容
-       */
-      function detectAndNotifyNewPosts(newPosts) {
-        // 只有在自动刷新触发且有权限时才发送通知
-        if (!isAutoRefreshTriggered || Notification.permission !== "granted") {
-          return;
-        }
-
-        // 提取新帖子的链接作为唯一标识
-        const newPostLinks = new Set(newPosts.map((post) => post.link));
-
-        // 找出真正的新帖子（之前没有的）
-        const trulyNewPosts = newPosts.filter(
-          (post) => !previousPostIds.has(post.link)
-        );
-
-        if (trulyNewPosts.length > 0) {
-          // 筛选匹配关键词的新帖子
-          const matchedNewPosts = trulyNewPosts.filter((post) => {
-            const searchText = (
-              post.title +
-              " " +
-              post.description
-            ).toLowerCase();
-            return keywords.some((keyword) =>
-              searchText.includes(keyword.toLowerCase())
-            );
-          });
-
-          if (matchedNewPosts.length > 0) {
-            // 发送通知
-            const firstPost = matchedNewPosts[0];
-            const title = `🔔 发现 ${matchedNewPosts.length} 篇新匹配帖子`;
-            const body = `最新：${firstPost.title.substring(0, 60)}${
-              firstPost.title.length > 60 ? "..." : ""
-            }`;
-            sendNotification(title, body, firstPost.link);
-          }
-        }
-
-        // 更新之前的帖子ID列表
-        previousPostIds = newPostLinks;
       }
 
       // ============== 自动刷新功能 ==============
@@ -1334,8 +1359,9 @@
 
       // ============== 初始化 ==============
 
-      // 页面加载时从 localStorage 读取关键词
+      // 页面加载时从 localStorage 读取数据
       loadKeywords();
+      loadNotifiedPostIds();
 
       // 显示初始空状态
       postsContainer.innerHTML = `
