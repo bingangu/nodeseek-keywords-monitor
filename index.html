@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NodeSeek 关键词监控面板</title>
+    <style>
+      /*
+         * Apple 风格设计系统（简约、克制、关注内容层级与可用性）
+         * - 使用中性浅灰背景与清晰的分隔线
+         * - 减少强烈渐变与大幅动效，突出排版与留白
+         * - 保持功能与结构不变，仅优化视觉与交互
+         */
+
+      /* ========== 基础色板与尺寸（浅色） ========== */
+      :root {
+        /* 语义色 */
+        --accent: #0a84ff; /* iOS/Apple 蓝 */
+        --accent-hover: #007aff;
+        --success: #34c759; /* iOS 成功绿 */
+        --bg: #f5f5f7; /* Apple 网站常用背景 */
+        --surface: rgba(255, 255, 255, 0.86);
+        --surface-opaque: #ffffff;
+        --text-primary: #1d1d1f; /* SF 的深色正文 */
+        --text-secondary: #6e6e73;
+        --border-color: rgba(0, 0, 0, 0.08);
+        --divider: rgba(0, 0, 0, 0.06);
+        --ring: rgba(10, 132, 255, 0.35);
+        --highlight-bg: #fff2b3; /* 温和的黄色标注 */
+        --highlight-fg: #6b5500;
+        /* 浮起的浅色表面上的文本颜色（跨深浅模式保证对比） */
+        --surface-contrast-text: #1d1d1f;
+        /* 按钮（浅色） */
+        --btn-primary-bg: var(--accent);
+        --btn-primary-hover-bg: var(--accent-hover);
+        --btn-primary-text: #ffffff;
+        --btn-primary-shadow: 0 2px 10px rgba(10, 132, 255, 0.25);
+        /* 关键词芯片（浅色） */
+        --chip-bg: #f2f2f7; /* iOS gray6 */
+        --chip-text: var(--text-primary);
+        --chip-border: rgba(0, 0, 0, 0.08);
+        --chip-hover-bg: #eaeaef;
+
+        /* 阴影（更克制） */
+        --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
+        --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.12);
+
+        /* 圆角与间距 */
+        --radius-lg: 18px;
+        --radius-md: 14px;
+        --radius-sm: 10px;
+        --radius-btn: 12px;
+        --gap-lg: 28px;
+        --gap-md: 20px;
+        --gap-sm: 12px;
+      }
+
+      /* ========== 深色模式（系统偏好） ========== */
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0c0c0d;
+          --surface: rgba(28, 28, 30, 0.75);
+          --surface-opaque: #1c1c1e;
+          --text-primary: #f5f5f7;
+          --text-secondary: #b3b3b5;
+          --border-color: rgba(255, 255, 255, 0.12);
+          --divider: rgba(255, 255, 255, 0.1);
+          --ring: rgba(10, 132, 255, 0.45);
+          --highlight-bg: #4d3b00;
+          --highlight-fg: #ffd60a;
+          /* 在深色模式下，浅色气泡中的文本需要深色以保证可读性 */
+          --surface-contrast-text: #111111;
+          /* 按钮（深色，降低饱和度，Tinted 风格） */
+          --btn-primary-bg: rgba(10, 132, 255, 0.22);
+          --btn-primary-hover-bg: rgba(10, 132, 255, 0.28);
+          --btn-primary-text: #e8f2ff;
+          --btn-primary-shadow: 0 2px 8px rgba(10, 132, 255, 0.18);
+          /* 关键词芯片（深色） */
+          --chip-bg: #2c2c2e; /* iOS gray4 */
+          --chip-text: #f5f5f7;
+          --chip-border: rgba(255, 255, 255, 0.14);
+          --chip-hover-bg: #3a3a3c;
+
+          --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.35);
+          --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.45);
+          --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
+        }
+      }
+
+      /* ========== 动画偏好（减少动画） ========== */
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+
+      /* ========== 全局基础 ========== */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+          "SF Pro Text", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+          sans-serif;
+        background: radial-gradient(
+          1200px 800px at 10% -10%,
+          #ffffff 0%,
+          var(--bg) 60%
+        );
+        background-attachment: fixed;
+        color: var(--text-primary);
+        line-height: 1.6;
+        padding: 40px 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      /* 顶部区块与标题 */
+      header {
+        text-align: center;
+        margin-bottom: 48px;
+      }
+      h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        letter-spacing: -0.03em;
+        margin-bottom: 12px;
+      }
+      .subtitle {
+        color: var(--text-secondary);
+        font-size: 1.12rem;
+        font-weight: 400;
+      }
+
+      /* 卡片/面板 */
+      .control-panel {
+        background: var(--surface);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        border-radius: var(--radius-lg);
+        padding: 28px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+      }
+
+      .section-title {
+        font-size: 1.35rem;
+        margin-bottom: var(--gap-md);
+        color: var(--text-primary);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      /* 输入与按钮 */
+      .keyword-input-group {
+        display: flex;
+        gap: var(--gap-sm);
+        margin-bottom: var(--gap-md);
+      }
+
+      #keywordInput {
+        flex: 1;
+        padding: 14px 16px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-btn);
+        font-size: 1.02rem;
+        transition: background-color 0.2s ease, border-color 0.2s ease,
+          box-shadow 0.2s ease, transform 0.1s ease;
+        background: var(--surface-opaque);
+        color: var(--text-primary);
+      }
+      #keywordInput::placeholder {
+        color: var(--text-secondary);
+      }
+      #keywordInput:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--ring);
+      }
+
+      .btn {
+        padding: 14px 22px;
+        border: none;
+        border-radius: var(--radius-btn);
+        font-size: 1.02rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease, box-shadow 0.2s ease,
+          transform 0.1s ease, color 0.2s ease;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--ring);
+      }
+
+      .btn-primary {
+        background: var(--btn-primary-bg);
+        color: var(--btn-primary-text);
+        box-shadow: var(--btn-primary-shadow);
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: var(--btn-primary-hover-bg);
+      }
+      .btn-primary:active:not(:disabled) {
+        transform: translateY(0);
+      }
+      .btn-primary:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      .btn-refresh {
+        background: var(--btn-primary-bg);
+        color: var(--btn-primary-text);
+        width: 100%;
+        padding: 16px;
+        font-size: 1.06rem;
+        box-shadow: var(--btn-primary-shadow);
+      }
+      .btn-refresh:hover:not(:disabled) {
+        background: var(--btn-primary-hover-bg);
+      }
+      .btn-refresh:active:not(:disabled) {
+        transform: translateY(0);
+      }
+      .btn-refresh:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      /* 关键词标签 */
+      .keywords-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--gap-sm);
+        min-height: 56px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.5);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--gap-md);
+        border: 1px solid var(--divider);
+      }
+      .keyword-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        background: var(--chip-bg);
+        color: var(--chip-text);
+        border-radius: var(--radius-sm);
+        font-size: 0.98rem;
+        font-weight: 500;
+        border: 1px solid var(--chip-border);
+        transition: background-color 0.2s ease, box-shadow 0.2s ease,
+          transform 0.1s ease;
+      }
+      .keyword-tag:hover {
+        background: var(--chip-hover-bg);
+        border-color: var(--border-color);
+      }
+      .keyword-tag .remove-btn {
+        background: rgba(0, 0, 0, 0.06);
+        border: none;
+        color: var(--text-secondary);
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        font-weight: 700;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+      }
+      .keyword-tag .remove-btn:hover {
+        background: rgba(0, 0, 0, 0.1);
+        color: var(--accent);
+      }
+
+      .empty-keywords {
+        color: var(--text-secondary);
+        font-size: 0.98rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+      }
+
+      /* 加载状态 */
+      .loading {
+        text-align: center;
+        padding: 56px;
+      }
+      .spinner {
+        display: inline-block;
+        width: 42px;
+        height: 42px;
+        border: 3px solid rgba(0, 0, 0, 0.08);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 16px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .loading div {
+        color: var(--text-secondary);
+        font-size: 1.02rem;
+        font-weight: 500;
+      }
+
+      /* 列表与卡片 */
+      .posts-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 22px;
+      }
+      .post-card {
+        background: var(--surface-opaque);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+        transition: box-shadow 0.25s ease, transform 0.2s ease,
+          background-color 0.2s ease;
+      }
+      .post-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .post-title {
+        font-size: 1.22rem;
+        margin-bottom: 12px;
+        line-height: 1.5;
+      }
+      .post-title a {
+        color: var(--text-primary);
+        text-decoration: none;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        transition: color 0.2s ease, text-decoration-color 0.2s ease;
+      }
+      .post-title a:hover {
+        color: var(--accent);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      .post-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 12px;
+        font-size: 0.94rem;
+        color: var(--text-secondary);
+      }
+      .post-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .post-description {
+        color: var(--text-primary);
+        line-height: 1.7;
+        overflow-wrap: break-word;
+      }
+
+      .highlight {
+        background: var(--highlight-bg);
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-weight: 600;
+        color: var(--highlight-fg);
+      }
+
+      /* 统计与空状态 */
+      .stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--gap-md);
+        padding: 16px 18px;
+        background: var(--surface);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        border-radius: 14px;
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-sm);
+      }
+      .stats-item {
+        font-size: 1rem;
+        color: var(--text-secondary);
+      }
+      .stats-item strong {
+        color: var(--text-primary);
+        font-size: 1.28rem;
+        margin-right: 6px;
+        font-weight: 800;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 64px 32px;
+        background: var(--surface);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border-color);
+      }
+      .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 18px;
+      }
+      .empty-state-title {
+        font-size: 1.6rem;
+        margin-bottom: 10px;
+        color: var(--text-primary);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .empty-state-text {
+        color: var(--text-secondary);
+        font-size: 1.06rem;
+        line-height: 1.6;
+      }
+
+      /* 自动刷新开关 */
+      .auto-refresh-control {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: var(--gap-md);
+        padding: 16px 18px;
+        background: rgba(255, 255, 255, 0.55);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+        border-radius: var(--radius-md);
+        flex-wrap: wrap;
+        gap: 14px;
+        border: 1px solid var(--divider);
+      }
+      .auto-refresh-toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.02rem;
+        color: var(--text-primary);
+        font-weight: 500;
+      }
+
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 54px;
+        height: 30px;
+      }
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.12);
+        transition: 0.25s ease;
+        border-radius: 30px;
+      }
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 24px;
+        width: 24px;
+        left: 3px;
+        bottom: 3px;
+        background-color: #fff;
+        transition: 0.25s ease;
+        border-radius: 50%;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+      }
+      input:checked + .slider {
+        background: linear-gradient(135deg, var(--success), #2db24f);
+      }
+      input:checked + .slider:before {
+        transform: translateX(24px);
+      }
+
+      .countdown {
+        display: none; /* 默认隐藏，通过 JS 控制显示 */
+        align-items: center;
+        gap: 8px;
+        font-size: 0.98rem;
+        color: var(--surface-contrast-text);
+        padding: 8px 14px;
+        background: rgba(255, 255, 255, 0.75);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+        border-radius: 999px;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+      }
+      .countdown.active {
+        display: flex; /* 激活时显示为 flex 布局 */
+      }
+      .countdown-time {
+        font-weight: 800;
+        color: var(--accent);
+        font-family: "SF Mono", "Courier New", monospace;
+        font-size: 1.06rem;
+      }
+
+      /* 响应式 */
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 2.4rem;
+        }
+        .posts-container {
+          grid-template-columns: 1fr;
+        }
+        .control-panel {
+          padding: 22px;
+        }
+        .keyword-input-group {
+          flex-direction: column;
+        }
+        .stats {
+          flex-direction: column;
+          gap: 10px;
+          text-align: center;
+        }
+        .auto-refresh-control {
+          justify-content: center;
+        }
+      }
+
+      /* 页脚 */
+      footer {
+        text-align: center;
+        margin-top: 56px;
+        padding: 24px 20px;
+        color: rgba(0, 0, 0, 0.55);
+        font-size: 0.98rem;
+      }
+      footer a {
+        color: var(--text-primary);
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s ease;
+      }
+      footer a:hover {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>📡 &nbsp;NodeSeek 关键词监控面板</h1>
+        <p class="subtitle">帮助您筛选想要关注的内容</p>
+      </header>
+
+      <div class="control-panel">
+        <h2 class="section-title">🏷️ 关键词管理</h2>
+        <div class="keyword-input-group">
+          <input
+            type="text"
+            id="keywordInput"
+            placeholder="输入关键词后按回车或点击添加..."
+            autocomplete="off"
+          />
+          <button class="btn btn-primary" id="addKeywordBtn">添加关键词</button>
+        </div>
+        <div id="keywordsContainer" class="keywords-container">
+          <span class="empty-keywords">还没有添加任何关键词</span>
+        </div>
+        <button class="btn btn-refresh" id="refreshBtn">🔄 刷新帖子</button>
+        <div class="auto-refresh-control">
+          <div class="auto-refresh-toggle">
+            <label class="switch">
+              <input
+                type="checkbox"
+                id="autoRefreshToggle"
+                aria-label="自动刷新开关"
+              />
+              <span class="slider"></span>
+            </label>
+            <span>⏱️ 自动刷新（每 1 分钟）</span>
+          </div>
+          <div class="countdown" id="countdownDisplay">
+            <span>下次刷新：</span>
+            <span class="countdown-time" id="countdownTime">60</span>
+            <span>秒</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="statsContainer"></div>
+      <div id="postsContainer"></div>
+    </div>
+
+    <script>
+      // ============== 常量定义 ==============
+      const RSS_URL = "https://rss.nodeseek.com/";
+      // 使用 CORS 代理来解决跨域问题
+      const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+      const STORAGE_KEY = "rss_keywords";
+
+      // ============== DOM 元素 ==============
+      const keywordInput = document.getElementById("keywordInput");
+      const addKeywordBtn = document.getElementById("addKeywordBtn");
+      const keywordsContainer = document.getElementById("keywordsContainer");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const postsContainer = document.getElementById("postsContainer");
+      const statsContainer = document.getElementById("statsContainer");
+      const autoRefreshToggle = document.getElementById("autoRefreshToggle");
+      const countdownDisplay = document.getElementById("countdownDisplay");
+      const countdownTime = document.getElementById("countdownTime");
+
+      // ============== 全局状态 ==============
+      let keywords = [];
+      let allPosts = [];
+      let previousPostIds = new Set(); // 存储之前的帖子 ID，用于检测新内容
+
+      // 自动刷新相关
+      const AUTO_REFRESH_INTERVAL = 60; // 60 秒
+      let countdownTimer = null;
+      let remainingSeconds = AUTO_REFRESH_INTERVAL;
+      let isFetching = false; // 防止并发请求的标志
+      let isAutoRefreshTriggered = false; // 标记是否为自动刷新触发
+
+      // ============== 关键词管理 ==============
+
+      /**
+       * 从 localStorage 加载关键词
+       */
+      function loadKeywords() {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            keywords = JSON.parse(stored);
+          }
+        } catch (error) {
+          console.error("加载关键词失败:", error);
+          keywords = [];
+        }
+        renderKeywords();
+      }
+
+      /**
+       * 保存关键词到 localStorage
+       */
+      function saveKeywords() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(keywords));
+        } catch (error) {
+          console.error("保存关键词失败:", error);
+        }
+      }
+
+      /**
+       * 添加关键词
+       */
+      function addKeyword() {
+        const keyword = keywordInput.value.trim();
+
+        if (!keyword) {
+          alert("请输入关键词");
+          return;
+        }
+
+        if (keywords.includes(keyword)) {
+          alert("该关键词已存在");
+          return;
+        }
+
+        keywords.push(keyword);
+        saveKeywords();
+        renderKeywords();
+        keywordInput.value = "";
+        keywordInput.focus();
+      }
+
+      /**
+       * 删除关键词
+       */
+      function removeKeyword(keyword) {
+        keywords = keywords.filter((k) => k !== keyword);
+        saveKeywords();
+        renderKeywords();
+      }
+
+      /**
+       * 更新刷新按钮状态
+       */
+      function updateRefreshButtonState() {
+        // 只有添加了关键词才能刷新
+        const hasKeywords = keywords.length > 0;
+        refreshBtn.disabled = !hasKeywords;
+
+        // 如果没有关键词，也禁用自动刷新
+        if (!hasKeywords && autoRefreshToggle.checked) {
+          autoRefreshToggle.checked = false;
+          stopAutoRefresh();
+        }
+      }
+
+      /**
+       * 渲染关键词标签
+       */
+      function renderKeywords() {
+        if (keywords.length === 0) {
+          keywordsContainer.innerHTML =
+            '<span class="empty-keywords">还没有添加任何关键词</span>';
+        } else {
+          keywordsContainer.innerHTML = keywords
+            .map(
+              (keyword, index) => `
+                    <div class="keyword-tag">
+                        <span>${escapeHtml(keyword)}</span>
+                        <button class="remove-btn" data-keyword-index="${index}">×</button>
+                    </div>
+                `
+            )
+            .join("");
+        }
+
+        // 更新刷新按钮状态
+        updateRefreshButtonState();
+      }
+
+      // ============== RSS 数据获取与解析 ==============
+
+      /**
+       * 获取并解析 RSS 数据
+       */
+      async function fetchRSS() {
+        // 防止并发请求
+        if (isFetching) {
+          return;
+        }
+
+        try {
+          isFetching = true;
+
+          // 显示加载状态
+          showLoading();
+
+          // 禁用刷新按钮
+          refreshBtn.disabled = true;
+          refreshBtn.textContent = "⏳ 加载中...";
+
+          // 通过 CORS 代理获取 RSS 数据
+          const response = await fetch(
+            CORS_PROXY + encodeURIComponent(RSS_URL)
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP 错误! 状态: ${response.status}`);
+          }
+
+          const xmlText = await response.text();
+
+          // 使用 DOMParser 解析 XML
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+          // 检查解析错误
+          const parseError = xmlDoc.querySelector("parsererror");
+          if (parseError) {
+            throw new Error("XML 解析失败");
+          }
+
+          // 提取所有 item 元素
+          const items = xmlDoc.querySelectorAll("item");
+
+          allPosts = Array.from(items).map((item) => {
+            return {
+              title: getElementText(item, "title"),
+              link: getElementText(item, "link"),
+              description: getElementText(item, "description"),
+              author:
+                getElementText(item, "dc\\:creator") ||
+                getElementText(item, "creator") ||
+                "未知作者",
+              pubDate: getElementText(item, "pubDate"),
+            };
+          });
+
+          // 检测并通知新内容（仅在自动刷新时）
+          detectAndNotifyNewPosts(allPosts);
+
+          // 筛选并渲染帖子
+          filterAndRenderPosts();
+        } catch (error) {
+          console.error("获取 RSS 失败:", error);
+          postsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <div class="empty-state-title">获取数据失败</div>
+                        <div class="empty-state-text">错误信息: ${escapeHtml(
+                          error.message
+                        )}</div>
+                        <div class="empty-state-text" style="margin-top: 10px;">请检查网络连接后重试</div>
+                    </div>
+                `;
+          statsContainer.innerHTML = "";
+        } finally {
+          // 重置获取标志
+          isFetching = false;
+          isAutoRefreshTriggered = false;
+
+          // 恢复刷新按钮（取决于是否有关键词）
+          updateRefreshButtonState();
+          refreshBtn.textContent = "🔄 刷新帖子";
+
+          // 如果自动刷新已启用，重置倒计时
+          if (autoRefreshToggle.checked) {
+            remainingSeconds = AUTO_REFRESH_INTERVAL;
+            countdownTime.textContent = remainingSeconds;
+          }
+        }
+      }
+
+      /**
+       * 从 XML 元素中提取文本内容
+       */
+      function getElementText(parent, tagName) {
+        const element = parent.querySelector(tagName);
+        return element ? element.textContent.trim() : "";
+      }
+
+      // ============== 帖子筛选与渲染 ==============
+
+      /**
+       * 筛选并渲染帖子
+       */
+      function filterAndRenderPosts() {
+        let filteredPosts = allPosts;
+
+        // 如果有关键词，进行筛选
+        if (keywords.length > 0) {
+          filteredPosts = allPosts.filter((post) => {
+            const searchText = (
+              post.title +
+              " " +
+              post.description
+            ).toLowerCase();
+            return keywords.some((keyword) =>
+              searchText.includes(keyword.toLowerCase())
+            );
+          });
+        }
+
+        // 显示统计信息
+        renderStats(filteredPosts.length, allPosts.length);
+
+        // 渲染帖子
+        if (filteredPosts.length === 0) {
+          if (allPosts.length === 0) {
+            postsContainer.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <div class="empty-state-title">暂无数据</div>
+                            <div class="empty-state-text">点击"刷新帖子"按钮获取最新内容</div>
+                        </div>
+                    `;
+          } else {
+            postsContainer.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🔍</div>
+                            <div class="empty-state-title">未找到匹配的帖子</div>
+                            <div class="empty-state-text">请尝试调整关键词或添加新的关键词</div>
+                        </div>
+                    `;
+          }
+        } else {
+          postsContainer.innerHTML = `
+                    <div class="posts-container">
+                        ${filteredPosts
+                          .map((post) => renderPost(post))
+                          .join("")}
+                    </div>
+                `;
+        }
+      }
+
+      /**
+       * 渲染单个帖子卡片
+       */
+      function renderPost(post) {
+        // 高亮处理
+        const highlightedTitle = highlightKeywords(post.title);
+        const highlightedDescription = highlightKeywords(post.description);
+
+        // 格式化日期
+        const formattedDate = formatDate(post.pubDate);
+
+        return `
+                <div class="post-card">
+                    <div class="post-title">
+                        <a href="${escapeHtml(
+                          post.link
+                        )}" target="_blank" rel="noopener noreferrer">
+                            ${highlightedTitle}
+                        </a>
+                    </div>
+                    <div class="post-meta">
+                        <span class="post-meta-item">${escapeHtml(
+                          post.author
+                        )}</span>
+                        <span class="post-meta-item">${formattedDate}</span>
+                    </div>
+                    <div class="post-description">
+                        ${highlightedDescription}
+                    </div>
+                </div>
+            `;
+      }
+
+      /**
+       * 在文本中高亮关键词
+       */
+      function highlightKeywords(text) {
+        if (keywords.length === 0) {
+          return escapeHtml(text);
+        }
+
+        let result = escapeHtml(text);
+
+        // 为每个关键词创建高亮
+        keywords.forEach((keyword) => {
+          const escapedKeyword = escapeRegExp(keyword);
+          const regex = new RegExp(`(${escapedKeyword})`, "gi");
+          result = result.replace(regex, '<span class="highlight">$1</span>');
+        });
+
+        return result;
+      }
+
+      /**
+       * 渲染统计信息
+       */
+      function renderStats(filtered, total) {
+        if (total === 0) {
+          statsContainer.innerHTML = "";
+          return;
+        }
+
+        const keywordInfo =
+          keywords.length > 0
+            ? `<span class="stats-item"><strong>${keywords.length}</strong> 个关键词</span>`
+            : "";
+
+        statsContainer.innerHTML = `
+                <div class="stats">
+                    <span class="stats-item"><strong>${filtered}</strong> 篇匹配</span>
+                    ${keywordInfo}
+                    <span class="stats-item">共 <strong>${total}</strong> 篇帖子</span>
+                </div>
+            `;
+      }
+
+      /**
+       * 显示加载状态
+       */
+      function showLoading() {
+        postsContainer.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>正在加载 RSS 数据...</div>
+                </div>
+            `;
+        statsContainer.innerHTML = "";
+      }
+
+      // ============== 浏览器通知功能 ==============
+
+      /**
+       * 请求浏览器通知权限
+       */
+      async function requestNotificationPermission() {
+        if (!("Notification" in window)) {
+          console.log("此浏览器不支持桌面通知");
+          return false;
+        }
+
+        if (Notification.permission === "granted") {
+          return true;
+        }
+
+        if (Notification.permission !== "denied") {
+          const permission = await Notification.requestPermission();
+          return permission === "granted";
+        }
+
+        return false;
+      }
+
+      /**
+       * 发送浏览器通知
+       */
+      function sendNotification(title, body, link) {
+        if (Notification.permission === "granted") {
+          const notification = new Notification(title, {
+            body: body,
+            icon: "📡",
+            badge: "🔔",
+            tag: "rss-monitor",
+            requireInteraction: false,
+            silent: false,
+          });
+
+          // 点击通知时打开链接（如果提供了）
+          if (link) {
+            notification.onclick = function () {
+              window.open(link, "_blank");
+              notification.close();
+            };
+          }
+
+          // 5秒后自动关闭
+          setTimeout(() => notification.close(), 5000);
+        }
+      }
+
+      /**
+       * 检测并通知新内容
+       */
+      function detectAndNotifyNewPosts(newPosts) {
+        // 只有在自动刷新触发且有权限时才发送通知
+        if (!isAutoRefreshTriggered || Notification.permission !== "granted") {
+          return;
+        }
+
+        // 提取新帖子的链接作为唯一标识
+        const newPostLinks = new Set(newPosts.map((post) => post.link));
+
+        // 找出真正的新帖子（之前没有的）
+        const trulyNewPosts = newPosts.filter(
+          (post) => !previousPostIds.has(post.link)
+        );
+
+        if (trulyNewPosts.length > 0) {
+          // 筛选匹配关键词的新帖子
+          const matchedNewPosts = trulyNewPosts.filter((post) => {
+            const searchText = (
+              post.title +
+              " " +
+              post.description
+            ).toLowerCase();
+            return keywords.some((keyword) =>
+              searchText.includes(keyword.toLowerCase())
+            );
+          });
+
+          if (matchedNewPosts.length > 0) {
+            // 发送通知
+            const firstPost = matchedNewPosts[0];
+            const title = `🔔 发现 ${matchedNewPosts.length} 篇新匹配帖子`;
+            const body = `最新：${firstPost.title.substring(0, 60)}${
+              firstPost.title.length > 60 ? "..." : ""
+            }`;
+            sendNotification(title, body, firstPost.link);
+          }
+        }
+
+        // 更新之前的帖子ID列表
+        previousPostIds = newPostLinks;
+      }
+
+      // ============== 自动刷新功能 ==============
+
+      /**
+       * 更新倒计时显示
+       */
+      function updateCountdown() {
+        countdownTime.textContent = remainingSeconds;
+        remainingSeconds--;
+
+        if (remainingSeconds < 0) {
+          // 时间到，检查是否可以执行刷新
+          if (!isFetching) {
+            // 标记为自动刷新触发
+            isAutoRefreshTriggered = true;
+            fetchRSS();
+          }
+          // 重置倒计时（无论是否触发刷新）
+          remainingSeconds = AUTO_REFRESH_INTERVAL;
+        }
+      }
+
+      /**
+       * 启动自动刷新
+       */
+      async function startAutoRefresh() {
+        // 先停止现有的定时器
+        if (countdownTimer) {
+          stopAutoRefresh();
+        }
+
+        // 请求浏览器通知权限
+        await requestNotificationPermission();
+
+        // 显示倒计时（使用 CSS 类控制）
+        countdownDisplay.classList.add("active");
+        remainingSeconds = AUTO_REFRESH_INTERVAL;
+        countdownTime.textContent = remainingSeconds;
+
+        // 启动倒计时定时器（每秒更新一次）
+        countdownTimer = setInterval(updateCountdown, 1000);
+      }
+
+      /**
+       * 停止自动刷新
+       */
+      function stopAutoRefresh() {
+        if (countdownTimer) {
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+        }
+
+        // 隐藏倒计时（使用 CSS 类控制）
+        countdownDisplay.classList.remove("active");
+        remainingSeconds = AUTO_REFRESH_INTERVAL;
+      }
+
+      /**
+       * 切换自动刷新状态
+       */
+      function toggleAutoRefresh() {
+        if (autoRefreshToggle.checked) {
+          startAutoRefresh();
+        } else {
+          stopAutoRefresh();
+        }
+      }
+
+      // ============== 工具函数 ==============
+
+      /**
+       * HTML 转义，防止 XSS
+       */
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      /**
+       * 转义正则表达式特殊字符
+       */
+      function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+
+      /**
+       * 格式化日期
+       */
+      function formatDate(dateString) {
+        if (!dateString) return "未知日期";
+
+        try {
+          const date = new Date(dateString);
+          const now = new Date();
+          const diffMs = now - date;
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+
+          // 相对时间显示
+          if (diffMins < 1) return "刚刚";
+          if (diffMins < 60) return `${diffMins} 分钟前`;
+          if (diffHours < 24) return `${diffHours} 小时前`;
+          if (diffDays < 7) return `${diffDays} 天前`;
+
+          // 绝对时间显示
+          return date.toLocaleDateString("zh-CN", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } catch (error) {
+          return dateString;
+        }
+      }
+
+      // ============== 事件监听 ==============
+
+      // 添加关键词按钮点击
+      addKeywordBtn.addEventListener("click", addKeyword);
+
+      // 输入框回车键
+      keywordInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          addKeyword();
+        }
+      });
+
+      // 刷新按钮点击
+      refreshBtn.addEventListener("click", fetchRSS);
+
+      // 关键词删除按钮点击（事件委托）
+      keywordsContainer.addEventListener("click", (e) => {
+        if (e.target.classList.contains("remove-btn")) {
+          const index = parseInt(e.target.dataset.keywordIndex, 10);
+          if (!isNaN(index) && index >= 0 && index < keywords.length) {
+            const keyword = keywords[index];
+            removeKeyword(keyword);
+          }
+        }
+      });
+
+      // 自动刷新开关切换
+      autoRefreshToggle.addEventListener("change", toggleAutoRefresh);
+
+      // ============== 初始化 ==============
+
+      // 页面加载时从 localStorage 读取关键词
+      loadKeywords();
+
+      // 显示初始空状态
+      postsContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🔔</div>
+                <div class="empty-state-title">开始监控您关注的内容</div>
+                <div class="empty-state-text">请先在上方添加至少一个关键词，然后点击「刷新帖子」按钮获取匹配的最新内容</div>
+            </div>
+        `;
+
+      // 页面加载完成后自动聚焦到输入框
+      keywordInput.focus();
+    </script>
+  </body>
+</html>
