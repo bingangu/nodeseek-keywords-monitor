@@ -28,7 +28,15 @@ https://ghostart.blog/nodeseek-keywords-monitor
 ### 2. RSS 数据获取
 
 - RSS 源：https://rss.nodeseek.com/
-- CORS 解决方案：使用 https://api.allorigins.win/raw?url= 代理
+- **CORS 解决方案**：使用多个代理服务器并支持自动故障转移
+  - 代理列表：
+    1. https://api.allorigins.win/raw?url=
+    2. https://corsproxy.io/?
+    3. https://api.codetabs.com/v1/proxy?quest=
+    4. https://cors-anywhere.herokuapp.com/
+  - 故障转移机制：当一个代理失败时自动尝试下一个
+  - 智能记忆：记录上次成功的代理，下次优先使用
+  - 超时控制：每个代理请求最多等待 10 秒
 - XML 解析：使用浏览器原生 DOMParser API
 - 提取字段：标题、链接、描述、作者 (dc:creator)、发布日期 (pubDate)
 
@@ -97,7 +105,8 @@ https://ghostart.blog/nodeseek-keywords-monitor
 
 ### RSS 数据处理
 
-- `fetchRSS()`: 通过 CORS 代理获取 RSS XML 数据
+- `fetchWithProxy()`: 使用单个代理尝试获取 RSS 数据（支持超时控制）
+- `fetchRSS()`: 通过多个 CORS 代理获取 RSS XML 数据（支持故障转移）
 - `getElementText()`: 从 XML 元素提取文本内容
 - `filterAndRenderPosts()`: 根据关键词筛选帖子并渲染
 
@@ -135,7 +144,7 @@ https://ghostart.blog/nodeseek-keywords-monitor
 
 ## 最近更新
 
-- 2025-10-30: 初始版本创建
+- **2025-10-30**: 初始版本创建
   - 实现完整的关键词管理功能
   - 实现 RSS 数据获取和解析
   - 实现帖子筛选和高亮功能
@@ -161,6 +170,13 @@ https://ghostart.blog/nodeseek-keywords-monitor
     - 智能过滤：只通知匹配关键词的新帖子
     - 可点击通知：点击通知直接打开帖子链接
     - 自动关闭：通知 5 秒后自动消失
+  - **🔥 多代理故障转移机制**：彻底解决 CORS 代理不稳定问题
+    - 支持 4 个备用 CORS 代理服务器
+    - 自动故障转移：一个代理失败时自动切换到下一个
+    - 智能记忆：记录最近成功的代理，下次优先使用
+    - 超时保护：单个代理请求最多等待 10 秒
+    - 详细日志：在控制台显示每个代理的尝试结果
+    - 全部失败提示：所有代理都失败时显示明确的错误信息
 
 ## 使用说明
 

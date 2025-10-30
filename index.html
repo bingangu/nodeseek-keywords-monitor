@@ -624,9 +624,17 @@
     <script>
       // ============== 常量定义 ==============
       const RSS_URL = "https://rss.nodeseek.com/";
-      // 使用 CORS 代理来解决跨域问题
-      const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+      // 使用多个 CORS 代理来解决跨域问题,提高可用性
+      const CORS_PROXIES = [
+        "https://api.allorigins.win/raw?url=",
+        "https://corsproxy.io/?",
+        "https://api.codetabs.com/v1/proxy?quest=",
+        "https://cors-anywhere.herokuapp.com/",
+      ];
       const STORAGE_KEY = "rss_keywords";
+
+      // 当前使用的代理索引
+      let currentProxyIndex = 0;
 
       // ============== DOM 元素 ==============
       const keywordInput = document.getElementById("keywordInput");
@@ -754,7 +762,22 @@
       // ============== RSS 数据获取与解析 ==============
 
       /**
-       * 获取并解析 RSS 数据
+       * 使用单个代理尝试获取RSS数据
+       */
+      async function fetchWithProxy(proxyUrl) {
+        const response = await fetch(proxyUrl + encodeURIComponent(RSS_URL), {
+          signal: AbortSignal.timeout(10000), // 10秒超时
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP 错误! 状态: ${response.status}`);
+        }
+
+        return await response.text();
+      }
+
+      /**
+       * 获取并解析 RSS 数据（支持多代理故障转移）
        */
       async function fetchRSS() {
         // 防止并发请求
@@ -772,16 +795,41 @@
           refreshBtn.disabled = true;
           refreshBtn.textContent = "⏳ 加载中...";
 
-          // 通过 CORS 代理获取 RSS 数据
-          const response = await fetch(
-            CORS_PROXY + encodeURIComponent(RSS_URL)
-          );
+          let xmlText = null;
+          let lastError = null;
+          let successProxyIndex = -1;
 
-          if (!response.ok) {
-            throw new Error(`HTTP 错误! 状态: ${response.status}`);
+          // 尝试所有代理，从当前代理开始
+          for (let i = 0; i < CORS_PROXIES.length; i++) {
+            const proxyIndex = (currentProxyIndex + i) % CORS_PROXIES.length;
+            const proxyUrl = CORS_PROXIES[proxyIndex];
+
+            try {
+              console.log(
+                `尝试使用代理 ${proxyIndex + 1}/${
+                  CORS_PROXIES.length
+                }: ${proxyUrl}`
+              );
+              xmlText = await fetchWithProxy(proxyUrl);
+              successProxyIndex = proxyIndex;
+              console.log(`✓ 代理 ${proxyIndex + 1} 成功`);
+              break; // 成功则跳出循环
+            } catch (error) {
+              console.warn(`✗ 代理 ${proxyIndex + 1} 失败:`, error.message);
+              lastError = error;
+              // 继续尝试下一个代理
+            }
           }
 
-          const xmlText = await response.text();
+          // 所有代理都失败
+          if (!xmlText) {
+            throw new Error(
+              `所有代理均失败。最后错误: ${lastError?.message || "未知错误"}`
+            );
+          }
+
+          // 更新当前使用的代理索引（下次优先使用成功的代理）
+          currentProxyIndex = successProxyIndex;
 
           // 使用 DOMParser 解析 XML
           const parser = new DOMParser();
@@ -823,7 +871,9 @@
                         <div class="empty-state-text">错误信息: ${escapeHtml(
                           error.message
                         )}</div>
-                        <div class="empty-state-text" style="margin-top: 10px;">请检查网络连接后重试</div>
+                        <div class="empty-state-text" style="margin-top: 10px;">已尝试 ${
+                          CORS_PROXIES.length
+                        } 个代理服务器，请稍后重试</div>
                     </div>
                 `;
           statsContainer.innerHTML = "";
