@@ -28,15 +28,20 @@ https://ghostart.blog/nodeseek-keywords-monitor
 ### 2. RSS 数据获取
 
 - RSS 源：https://rss.nodeseek.com/
-- **CORS 解决方案**：使用多个代理服务器并支持自动故障转移
-  - 代理列表：
-    1. https://api.allorigins.win/raw?url=
-    2. https://corsproxy.io/?
-    3. https://api.codetabs.com/v1/proxy?quest=
-    4. https://cors-anywhere.herokuapp.com/
-  - 故障转移机制：当一个代理失败时自动尝试下一个
-  - 智能记忆：记录上次成功的代理，下次优先使用
-  - 超时控制：每个代理请求最多等待 10 秒
+- **CORS 解决方案**：双重保障策略
+  - **方案 1（推荐）**：使用自己的 Node.js 后端代理
+    - 完全掌控，无依赖第三方
+    - 稳定可靠，可部署到任何平台
+    - 支持 Vercel、Railway、Render 等免费部署
+  - **方案 2（备用）**：第三方 CORS 代理故障转移
+    - 备用代理列表：
+      1. https://api.allorigins.win/raw?url=
+      2. https://corsproxy.io/?
+      3. https://api.codetabs.com/v1/proxy?quest=
+      4. https://cors-anywhere.herokuapp.com/
+    - 自动降级：后端失败时自动切换到第三方代理
+    - 智能记忆：记录上次成功的代理，下次优先使用
+  - 超时控制：每个请求最多等待 10 秒
 - XML 解析：使用浏览器原生 DOMParser API
 - 提取字段：标题、链接、描述、作者 (dc:creator)、发布日期 (pubDate)
 
@@ -74,6 +79,8 @@ https://ghostart.blog/nodeseek-keywords-monitor
 
 ## 技术栈
 
+### 前端
+
 - **HTML5**：语义化标签
 - **CSS3**：原生 CSS，无框架
   - CSS 变量用于主题管理
@@ -86,11 +93,22 @@ https://ghostart.blog/nodeseek-keywords-monitor
   - LocalStorage API 持久化
   - 正则表达式关键词匹配
 
+### 后端（可选）
+
+- **Node.js**：JavaScript 运行时
+- **Express**：轻量级 Web 框架
+- **node-fetch**：用于服务端 HTTP 请求
+- **cors**：跨域资源共享中间件
+
 ## 项目结构
 
 ```
-├── index.html          # 单文件应用（包含 HTML、CSS、JavaScript）
-└── README.md          # 项目文档
+├── index.html          # 前端单页应用（HTML、CSS、JavaScript）
+├── server.js           # Node.js 后端服务器（RSS 代理）
+├── package.json        # Node.js 项目配置
+├── vercel.json         # Vercel 部署配置
+├── .gitignore          # Git 忽略文件
+└── README.md           # 项目文档
 ```
 
 ## 主要代码逻辑
@@ -105,8 +123,9 @@ https://ghostart.blog/nodeseek-keywords-monitor
 
 ### RSS 数据处理
 
-- `fetchWithProxy()`: 使用单个代理尝试获取 RSS 数据（支持超时控制）
-- `fetchRSS()`: 通过多个 CORS 代理获取 RSS XML 数据（支持故障转移）
+- `fetchFromOwnBackend()`: 从自己的后端 API 获取 RSS 数据
+- `fetchWithProxy()`: 使用单个第三方代理尝试获取 RSS 数据（支持超时控制）
+- `fetchRSS()`: 智能获取 RSS 数据（优先后端，失败时降级到第三方代理）
 - `getElementText()`: 从 XML 元素提取文本内容
 - `filterAndRenderPosts()`: 根据关键词筛选帖子并渲染
 
@@ -177,15 +196,85 @@ https://ghostart.blog/nodeseek-keywords-monitor
     - 超时保护：单个代理请求最多等待 10 秒
     - 详细日志：在控制台显示每个代理的尝试结果
     - 全部失败提示：所有代理都失败时显示明确的错误信息
+  - **🚀 Node.js 后端支持**：摆脱第三方代理依赖
+    - 创建独立的 Express 后端服务器
+    - 直接从服务端获取 RSS 数据，无 CORS 限制
+    - 双重保障：优先使用自己的后端，失败时自动降级到第三方代理
+    - 支持部署到 Vercel、Railway、Render 等免费平台
+    - 提供完整的部署配置文件（`vercel.json`、`package.json`）
+    - 本地开发和生产环境无缝切换
 
 ## 使用说明
 
-1. 打开 index.html 即可直接在浏览器中使用
-2. 在"关键词管理"区域添加您感兴趣的关键词（至少一个）
-3. 点击"刷新帖子"按钮获取最新的 RSS 数据
-4. 查看筛选后的帖子，匹配的关键词会被高亮显示
-5. **可选**：启用"自动刷新"开关，每 60 秒自动获取新内容
-   - 首次启用时，浏览器会弹出通知权限请求，请点击"允许"
-   - 发现新的匹配帖子时，会收到浏览器桌面通知
-   - 点击通知可直接打开对应的帖子链接
-6. 关键词会自动保存，下次访问时无需重新添加
+### 方式一：纯前端使用（使用第三方代理）
+
+1. 直接打开 `index.html` 在浏览器中使用
+2. 在前端代码中设置 `USE_OWN_BACKEND = false`
+3. 依赖第三方 CORS 代理（可能不稳定）
+
+### 方式二：前端 + 后端使用（推荐）
+
+#### 本地开发
+
+1. **安装依赖**
+
+   ```bash
+   npm install
+   ```
+
+2. **启动后端服务器**
+
+   ```bash
+   npm start
+   # 或使用开发模式（支持热重载）
+   npm run dev
+   ```
+
+3. **打开前端页面**
+
+   - 在浏览器中打开 `http://localhost:3000`
+   - 或直接打开 `index.html` 文件（会自动调用本地后端 API）
+
+4. **使用应用**
+   - 在"关键词管理"区域添加您感兴趣的关键词（至少一个）
+   - 点击"刷新帖子"按钮获取最新的 RSS 数据
+   - 查看筛选后的帖子，匹配的关键词会被高亮显示
+   - **可选**：启用"自动刷新"开关，每 60 秒自动获取新内容
+     - 首次启用时，浏览器会弹出通知权限请求，请点击"允许"
+     - 发现新的匹配帖子时，会收到浏览器桌面通知
+     - 点击通知可直接打开对应的帖子链接
+   - 关键词会自动保存，下次访问时无需重新添加
+
+#### 部署到 Vercel（推荐）
+
+1. **安装 Vercel CLI**
+
+   ```bash
+   npm install -g vercel
+   ```
+
+2. **部署项目**
+
+   ```bash
+   vercel
+   ```
+
+3. **按照提示完成部署**
+
+   - Vercel 会自动识别 `vercel.json` 配置
+   - 自动部署前端和后端
+   - 获得一个免费的 HTTPS 域名
+
+4. **访问您的应用**
+   - 通过 Vercel 提供的域名访问
+   - 前端会自动调用同域名的 `/api/rss` 端点
+
+#### 部署到其他平台
+
+**Railway / Render / Heroku**
+
+- 这些平台都支持 Node.js 应用
+- 将项目推送到 GitHub
+- 在平台上连接 GitHub 仓库
+- 设置启动命令为 `npm start`
+- 部署完成后，修改前端 `BACKEND_API_URL` 为您的后端域名

@@ -624,8 +624,14 @@
     <script>
       // ============== 常量定义 ==============
       const RSS_URL = "https://rss.nodeseek.com/";
-      // 使用多个 CORS 代理来解决跨域问题,提高可用性
-      const CORS_PROXIES = [
+
+      // 优先使用自己的后端API,如果后端不可用则降级到第三方代理
+      // 部署到 Vercel 后,会自动使用同域名的 /api/rss 端点
+      const USE_OWN_BACKEND = true; // 是否优先使用自己的后端
+      const BACKEND_API_URL = "/api/rss"; // 自己的后端API地址(相对路径或绝对路径)
+
+      // 备用的第三方 CORS 代理(当后端不可用时使用)
+      const FALLBACK_CORS_PROXIES = [
         "https://api.allorigins.win/raw?url=",
         "https://corsproxy.io/?",
         "https://api.codetabs.com/v1/proxy?quest=",
@@ -762,7 +768,22 @@
       // ============== RSS 数据获取与解析 ==============
 
       /**
-       * 使用单个代理尝试获取RSS数据
+       * 尝试从自己的后端API获取RSS数据
+       */
+      async function fetchFromOwnBackend() {
+        const response = await fetch(BACKEND_API_URL, {
+          signal: AbortSignal.timeout(10000), // 10秒超时
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP 错误! 状态: ${response.status}`);
+        }
+
+        return await response.text();
+      }
+
+      /**
+       * 使用单个第三方代理尝试获取RSS数据
        */
       async function fetchWithProxy(proxyUrl) {
         const response = await fetch(proxyUrl + encodeURIComponent(RSS_URL), {
@@ -777,7 +798,7 @@
       }
 
       /**
-       * 获取并解析 RSS 数据（支持多代理故障转移）
+       * 获取并解析 RSS 数据（优先使用自己的后端,失败时降级到第三方代理）
        */
       async function fetchRSS() {
         // 防止并发请求
@@ -799,37 +820,60 @@
           let lastError = null;
           let successProxyIndex = -1;
 
-          // 尝试所有代理，从当前代理开始
-          for (let i = 0; i < CORS_PROXIES.length; i++) {
-            const proxyIndex = (currentProxyIndex + i) % CORS_PROXIES.length;
-            const proxyUrl = CORS_PROXIES[proxyIndex];
-
+          // 策略1: 优先尝试自己的后端API
+          if (USE_OWN_BACKEND) {
             try {
-              console.log(
-                `尝试使用代理 ${proxyIndex + 1}/${
-                  CORS_PROXIES.length
-                }: ${proxyUrl}`
-              );
-              xmlText = await fetchWithProxy(proxyUrl);
-              successProxyIndex = proxyIndex;
-              console.log(`✓ 代理 ${proxyIndex + 1} 成功`);
-              break; // 成功则跳出循环
+              console.log("🚀 尝试使用自己的后端API:", BACKEND_API_URL);
+              xmlText = await fetchFromOwnBackend();
+              console.log("✓ 自己的后端API成功");
             } catch (error) {
-              console.warn(`✗ 代理 ${proxyIndex + 1} 失败:`, error.message);
+              console.warn("✗ 自己的后端API失败:", error.message);
+              console.log("⚠️ 降级到第三方代理...");
               lastError = error;
-              // 继续尝试下一个代理
             }
           }
 
-          // 所有代理都失败
+          // 策略2: 如果后端失败,尝试第三方代理
+          if (!xmlText) {
+            for (let i = 0; i < FALLBACK_CORS_PROXIES.length; i++) {
+              const proxyIndex =
+                (currentProxyIndex + i) % FALLBACK_CORS_PROXIES.length;
+              const proxyUrl = FALLBACK_CORS_PROXIES[proxyIndex];
+
+              try {
+                console.log(
+                  `尝试使用第三方代理 ${proxyIndex + 1}/${
+                    FALLBACK_CORS_PROXIES.length
+                  }: ${proxyUrl}`
+                );
+                xmlText = await fetchWithProxy(proxyUrl);
+                successProxyIndex = proxyIndex;
+                console.log(`✓ 第三方代理 ${proxyIndex + 1} 成功`);
+                break; // 成功则跳出循环
+              } catch (error) {
+                console.warn(
+                  `✗ 第三方代理 ${proxyIndex + 1} 失败:`,
+                  error.message
+                );
+                lastError = error;
+                // 继续尝试下一个代理
+              }
+            }
+          }
+
+          // 所有方法都失败
           if (!xmlText) {
             throw new Error(
-              `所有代理均失败。最后错误: ${lastError?.message || "未知错误"}`
+              `所有获取方式均失败。最后错误: ${
+                lastError?.message || "未知错误"
+              }`
             );
           }
 
           // 更新当前使用的代理索引（下次优先使用成功的代理）
-          currentProxyIndex = successProxyIndex;
+          if (successProxyIndex >= 0) {
+            currentProxyIndex = successProxyIndex;
+          }
 
           // 使用 DOMParser 解析 XML
           const parser = new DOMParser();
@@ -871,9 +915,7 @@
                         <div class="empty-state-text">错误信息: ${escapeHtml(
                           error.message
                         )}</div>
-                        <div class="empty-state-text" style="margin-top: 10px;">已尝试 ${
-                          CORS_PROXIES.length
-                        } 个代理服务器，请稍后重试</div>
+                        <div class="empty-state-text" style="margin-top: 10px;">已尝试所有获取方式，请稍后重试</div>
                     </div>
                 `;
           statsContainer.innerHTML = "";
