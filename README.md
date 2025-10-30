@@ -2,6 +2,8 @@
 
 https://ghostart.blog/nodeseek-keywords-monitor
 
+![深色模式](https://res.cloudinary.com/nodeseek/image/upload/v1761805411/mdgwfx5ltgromsjl1akd.webp)
+
 # RSS 关键词监控面板
 
 ## 项目概述
