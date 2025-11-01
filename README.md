@@ -10,6 +10,12 @@ https://ghostart.blog/nodeseek-keywords-monitor
 
 ![通知](https://res.cloudinary.com/nodeseek/image/upload/v1761806233/z5hmtqoekbxu4zydngyi.webp)
 
+# Update
+
+纯前端版本还是不太好用，所以后来我又做了 Node.js 版本，并且关键词存储在数据库中，使用起来完美，通知也能正常发送。而且除了 NodeSeek 也可以用来订阅其他平台的 RSS，例如 HackerNews
+
+![RSS Keyword Monitor](https://res.cloudinary.com/nodeseek/image/upload/v1762032656/r9hkl5vqesyedvb2euu3.webp)
+
 # NodeSeek 关键词监控面板
 
 ## 项目概述
