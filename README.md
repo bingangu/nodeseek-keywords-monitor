@@ -1,14 +1,10 @@
 喜欢记得加星星 Star, 不想折腾可以直接使用现成网页版, 无需注册登录, 建议收藏为书签方便后续使用:
 
-https://ghostart.blog/nodeseek-keywords-monitor
+https://agent.firecpu.site/
 
 ## 深色效果图
 
 ![深色模式](https://res.cloudinary.com/nodeseek/image/upload/v1761805411/mdgwfx5ltgromsjl1akd.webp)
-
-## 开启通知
-
-![通知](https://res.cloudinary.com/nodeseek/image/upload/v1761806233/z5hmtqoekbxu4zydngyi.webp)
 
 # Update
 
